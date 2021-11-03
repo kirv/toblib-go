@@ -1,0 +1,126 @@
+#!/usr/bin/awk -f
+
+## Go/Package/GoFile.parse-gofile
+## Read the @ORDER list, cat each element file to stdout
+
+## This awk script reads a gofile (name.go) and creates thinobject elements
+## for each element of the file, including var, func, type, and so on.
+
+BEGIN {
+    ## initialize variables (not really necessary, but I want to document vars)
+    name = ""
+    for (i in buffer) {
+        delete buffer[i]
+    }
+    n = 0 # index into buffer lines
+    e = 0 # index into elements 
+    t = 0 # number of 'type' elements
+    f = 0 # number of 'func' elements
+    m = 0 # number of 'func' method elements
+    v = 0 # number of 'var' elements
+    c = 0 # number of 'const' elements
+}
+
+/^}{/ {
+    buffer[n++] = $0
+    next
+}
+
+/^[})]/ {
+    buffer[n++] = $0
+    ## Closing bracket marks the end of 'type' or 'func' element
+    ## Closing paren marks the end of 'var' or 'const' element
+    endElement()
+    next
+}
+
+$1 == "//" && name == "" {
+    ## comments preceeding an element are 'godoc' lines
+    buffer[n++] = $0
+    next
+}
+
+/^(package|import|var|const|type|func) / { 
+    buffer[n++] = $0
+    if ( $1 == "package" ) {
+        name = "@package"
+        system("symvar -f PACKAGE " $2)
+    } else if ( $1 == "import" ) {
+        name = "@import"
+    } else if ( $1 == "var" ) {
+        if ( $3 == "=" ) {
+            name = "@var:" $2
+            v++
+        } else if ( $4 == "=" ) {
+            name = "@var:" $3 ":" $2
+            v++
+        } else if ( NF == 3 ) {
+            name = "@var:" $3 ":" $2
+            v++
+        } else {
+            name = "@var:" v++
+        }
+    } else if ( $1 == "const" ) {
+        if ( $3 == "=" ) {
+            name = "@const:" $2
+            v++
+        } else {
+            name = "@const:" c++
+        }
+    } else if ( $1 == "type" ) {
+        name = "@type:" $3 ":" $2
+        if ( system("test -e " name) == 0 ) name = name "-"
+        t++
+    } else if ( $1 == "func" && $2 !~ /^\(/ ) {
+        ## func foo(...)
+        len = index($2, "(") - 1
+        name = "@func:" substr($2,1,len)
+        if ( system("test -e " name) == 0 ) name = name "-"
+        f++
+    } else if ( $1 == "func" ) {
+        ## func (x *bar) foo(...)
+      # tname = substr($3,2)
+        tname = $3
+        tlen = index(tname, ")") - 1
+        flen = index($4, "(") - 1
+        name = "@method:" substr(tname,1,tlen) ":" substr($4,1,flen) 
+        ## Add trailing '-' if different-case names match:
+        if ( system("test -e " name) == 0 ) name = name "-"
+        m++
+    }
+    elements[e++] = name " : " $0
+    if ( $0 !~ /[\{\(]$/ ) {
+        endElement()
+    }
+    next
+}
+
+name != "" {
+    buffer[n++] = $0
+    next
+}
+
+name == "" {
+    buffer[n++] = $0
+}
+
+function endElement() {
+    ## open file 'name', flush buffer into it
+  # print "###################### element " e-1, n " lines, {{" name "}}"
+    system("[[ -e " name " ]] && rm " name)
+    for (i=0; i<n; i++) {
+        print buffer[i] >> name
+        delete buffer[i]
+    }
+    n = 0
+    name = ""
+}
+
+END {
+    ## store ordered list of elements in list file @ORDER:
+    name = "@ORDER"
+    system("test -e " name " && rm " name)
+    for (i=0; i<e; i++) {
+        print elements[i] >> name
+    }
+}

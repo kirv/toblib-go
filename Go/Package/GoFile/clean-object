@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+## Go/Package/GoFile.clean-object
+## Read the @ORDER list, delete each element file, delete @ORDER and PACKAGES
+
+main() {
+    while IFS= read -r listfile; do
+        rm ${listfile%% *}
+    done < @ORDER && rm @ORDER
+
+    [[ -e %VARS ]] &&
+        while IFS= read -r symvar; do
+            rm ${symvar%%$'\t'*}
+        done < %VARS && rm %VARS
+
+    [[ -e %CONSTS ]] &&
+        while IFS= read -r symvar; do
+            rm ${symvar%%$'\t'*}
+        done < %CONSTS && rm %CONSTS
+
+    [[ -e %TYPES ]] &&
+        while IFS= read -r symvar; do
+            rm ${symvar%%$'\t'*}
+        done < %TYPES && rm %TYPES
+
+    rm PACKAGE
+}
+
+main "$@"
+

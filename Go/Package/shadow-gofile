@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+main() {
+    for f in *.go; do
+        [[ -d .$f ]] &&
+            error "shadow Go/Package/GoFile .$f exists"
+        mkdir .$f ||
+            error "failed to create shadow Go/Package/GoFile .$f"
+        (
+            cd .$f
+            ln -s Go/Package/GoFile ^
+            ln -s ../$f GOFILE
+            parse-gofile < GOFILE
+        )
+    done
+
+}
+
+main "$@"

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+## Go/Package/GoFile.build-gofile
+## Read the @ORDER list, cat each element file to stdout.
+
+
+main() {
+    while IFS= read -r element; do
+        element=${element%% *}
+        cat $element
+    done < @ORDER | gofmt
+}
+
+main "$@"

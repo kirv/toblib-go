@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+main() {
+    local pkg=$(symvar PACKAGE)
+    echo package $pkg
+
+    cat @IMPORT
+
+    for t in @type:*; do
+        cat $t
+    done
+
+    for f in @func:*; do
+        cat $f
+    done
+}
+
+main "$@"
