@@ -43,11 +43,10 @@ parse_declaration() {
     local declaration="$1" && shift
     local -a dw=( $declaration )
     local -i i j
-    local name
+    local name type value
     ## empty names[] array is declared in caller
-    local type
-    local value
     local -a values
+    local -A sv
 
     i=0
     ## var must be the first word in the declaration.
@@ -56,59 +55,56 @@ parse_declaration() {
     ## Declaration may have one name or several names separated by commas.
     while (( i < ${#dw[@]} )); do 
         name=${dw[i++]}
-        [[ $name == *, ]] && {
-            names+=(${name%,})
-            continue
-        }
+        [[ $name == *, ]] && names+=(${name%,}) && continue
         names+=($name)
         break
     done
 
     ## Next must be the variable type or '=' and value.
-
     type=${dw[i++]}
-    if [[ $type == '=' || ${dw[$i]} == '=' ]]; then
-        [[ $type == '=' ]] && type=
+    [[ $type == '=' || ${dw[$i]} == '=' ]] && {
         ## Go will infer the variable type from the value if no type is given.
         parse_values ${#names[@]} "${declaration#*=}"
         [[ ${#values[@]} == ${#names[@]} ]] || {
-            warn "number of values (${#values[@]}) must match names (${#names[@]})"
+            warn "number of values must match number of names"
             return
         }
-    fi
+    }
+    [[ $type == '=' ]] && type=
 
-    ## Now we have names, type, and values, so should be all set.
+    ## Now we have names, type, and/or values, so should be all set.
     for ((j=0; j<${#names[@]}; j++)); do 
         name="${names[j]}"
         value="${values[j]}"
         if [[ -n $value ]]; then
             ## We have the name and value, may have the type or not.
             if [[ -n $type ]]; then
-                svname=var:$type:$name
-                svvalue="var $name $type =$value"
+                sv[name]=var:$type:$name
+                sv[value]="var $name $type =$value"
             else
-                svname=var:$name
-                svvalue="var $name =$value"
+                sv[name]=var:$name
+                sv[value]="var $name =$value"
             fi
         else
             ## We have only the name, no value, so must have the type.
-            svname=var:$type:$name
-            svvalue="var $name $type"
+            sv[name]=var:$type:$name
+            sv[value]="var $name $type"
         fi
+        ## Replace names[j] entry with associated symvar name for caller's use:
+        names[$j]="${sv[name]}"
+
         ## Now we have the symvar name and value, ready to save.
 
         ## check if symvar already exists:
-        if [[ -h $svname ]]; then
+        if [[ -h ${sv[name]} ]]; then
             if [[ -n $FORCE ]]; then
-                symvar -f "$svname" "$svvalue"
+                symvar -f "${sv[name]}" "${sv[value]}"
             else 
-                warn "symvar file exists: $svname =$svvalue"
+                warn "symvar file exists: ${sv[name]} =${sv[value]}"
             fi
         else
-            symvar "$svname" "$svvalue"
+            symvar "${sv[name]}" "${sv[value]}"
         fi
-        ## Replace names[j] entry with associated symvar name for caller's use:
-        names[$j]="$svname"
     done
     return
 }
