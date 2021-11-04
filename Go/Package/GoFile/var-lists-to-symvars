@@ -17,32 +17,25 @@
 
 parse_values() {
     local -i num=$1
-    local val="$2"
-    local -i p
-    local -i v
+    local value="$2"
+    local -i p=0
+    local -i v=0
     local c
-    p=0
-    v=0
-    (( num == 1 )) && values[0]="$val" && return
-    while (( p < ${#val} )); do
-        c=${val:$p:1}
+    (( num == 1 )) && values[0]="$value" && return
+    while (( p < ${#value} )); do
+        c=${value:$p:1}
         p+=1
-        if [[ $c == '"' ]]; then
-            if [[ -n $INQUOTE ]]; then INQUOTE= ; else INQUOTE=1; fi
-        elif [[ $c == ',' && -z $INQUOTE ]]; then
-            v+=1
-            continue
-        fi
+        [[ $c == ',' && -z $INQUOTE ]] && v+=1 && continue
         values[$v]+=$c
+        [[ $c != '"' ]] && continue
+        if [[ -n $INQUOTE ]]; then INQUOTE= ; else INQUOTE=1; fi
     done
 }
 
 parse_declaration() {
-    ## The declaration is in dw[] without comments
     ## Expecting declarations of the form:
     ##      var name type
     ##      var name1, name2, name3 type
-    ## or:
     ##      var name type = value
     ##      var name = value
     ##      var name1, name2, name3 type = v1, v2, v3
@@ -121,8 +114,8 @@ parse_declaration() {
 }
 
 readVarListFile() {
-    local file="$1"
-    local save="$2"
+    local listfile="$1"
+    local SAVE="$2"
     local line
     local BLANK='^ *$'
     local BLOCKSTART='^\s*var *\('
@@ -133,26 +126,15 @@ readVarListFile() {
     local name
 
     while IFS= read -r line; do 
-        ## skip comments:
+        ## skip comments, blank lines, start and end of var(...) block:
         [[ $line == //* ]] && continue
-
-        ## Skip blank lines:
         [[ $line =~ $BLANK ]] && continue
-
-        ## Check for start or end of 'var (...)' block:
-        [[ $line =~ $BLOCKSTART ]] && {
-            inblock=1 && continue
-        }
-        [[ $line =~ $BLOCKEND ]] && {
-            inblock= && continue
-        }
-
-        ## Skip file if line ends with open curly bracket:
+        [[ $line =~ $BLOCKSTART ]] && inblock=1 && continue
+        [[ $line =~ $BLOCKEND ]] && inblock= && continue
         [[ $line =~ $OPENCURLYBRACKET ]] && {
-            warn "${0#*lib/} $file: unable to handle 'var ... {' declarations"
+            warn "${0#*lib/} $listfile: unable to handle 'var ... {' declarations"
             return 1
         }
-
         names=()
         if [[ -n $inblock ]]; then
             parse_declaration "var $line"
@@ -160,13 +142,11 @@ readVarListFile() {
             parse_declaration "$line"
         fi
 
-        [[ -n $save ]] || continue
-
+        [[ -n $SAVE ]] || continue
         for name in "${names[@]}"; do
-            printf "%s %s\n" "$name" "$file" >> %VARS
+            printf "%s %s\n" "$name" "$listfile" >> %VARS
         done
-
-    done < "$file"
+    done < "$listfile"
 }
 
 main() {
