@@ -95,16 +95,13 @@ parse_declaration() {
 
         ## Now we have the symvar name and value, ready to save.
 
-        ## check if symvar already exists:
-        if [[ -h ${sv[name]} ]]; then
-            if [[ -n $FORCE ]]; then
-                symvar -f "${sv[name]}" "${sv[value]}"
-            else 
-                warn "symvar file exists: ${sv[name]} =${sv[value]}"
-            fi
-        else
-            symvar "${sv[name]}" "${sv[value]}"
-        fi
+        ## Create symvar if it does not exist, or rewrite value if -f is given:
+        [[ ! -h ${sv[name]} || -n $FORCE ]] &&
+            symvar -f "${sv[name]}" "${sv[value]}" &&
+                continue
+
+        warn "symvar file exists: ${sv[name]} =${sv[value]}"
+
     done
     return
 }
