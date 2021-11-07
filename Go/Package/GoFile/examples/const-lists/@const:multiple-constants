@@ -1,0 +1,28 @@
+// https://golangbyexample.com/multiple-constant-declarations-go/
+
+// Declaring multiple const together with different value and type
+const (
+  a = "circle"
+  b = 1
+  c float = 4.65
+)
+
+// Declaring multiple const together with same value and type
+const (
+  d string = "circle"
+  e
+)
+
+// Combining above two
+const (
+  f string "circle"
+  g
+  h = 1
+)
+
+// Multiple declaration in single line
+const i, j = 1, 2
+const k, l int = 3, 4
+
+
+

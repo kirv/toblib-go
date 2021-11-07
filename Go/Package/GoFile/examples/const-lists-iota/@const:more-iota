@@ -1,0 +1,71 @@
+// https://medium.com/swlh/iota-create-effective-constants-in-golang-b399f94aac31
+const (
+    CategoryBooks    = 0
+    CategoryHealth   = 1
+    CategoryClothing = 2
+)
+const (
+	Low = iota
+	Medium
+	High
+)
+const (
+    _         = iota
+    a         = iota + 10
+    b int     = iota * 10
+    c float64 = iota + 5.1
+)
+const (
+   a = iota
+   b int = iota
+)
+const (
+   c = iota
+)
+const (
+	Secure = 1 << iota // 0b001
+	Authn              // 0b010
+	Ready              // 0b100
+)
+const ( // iota is reset to 0
+	a = 1 << iota // a == 1
+	b = 1 << iota // b == 2
+	c = 3         // c == 3  (iota is not used but still  
+                                  incremented)
+	d = 1 << iota // d == 8
+)
+const (
+	a = iota // a = 0
+	_        // iota is incremented  to 1
+	b        // b = 2
+)
+const (
+	bit0, mask0 = 1 << iota, 1<<iota - 1 //bit0 == 1, mask0 == 0
+	bit1, mask1                          //bit1 == 2, mask1 == 1
+	_, _                                 //skips iota == 2
+	bit3, mask3                          //bit3 == 8, mask3 == 7
+)
+const (
+	_           = iota //ignore first value by assigning to 
+                           //blank identifier
+	KB ByteSize = 1 << (10 * iota)
+	MB
+	GB
+	TB
+	PB
+)
+const (
+    tagBody = iota
+    tagDiv
+    tagHr
+)
+const (
+	one   = 1
+	five  = 5
+	seven = 7
+)
+const (
+    tagBody HTMLTag = iota
+    tagDiv
+    tagHr
+)

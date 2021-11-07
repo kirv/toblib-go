@@ -1,0 +1,8 @@
+
+const (
+	hasMonotonic = 1 << 63
+	maxWall      = wallToInternal + (1<<33 - 1) // year 2157
+	minWall      = wallToInternal               // year 1885
+	nsecMask     = 1<<30 - 1
+	nsecShift    = 30
+)

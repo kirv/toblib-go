@@ -1,0 +1,1 @@
+=const bit0, mask0 = 1 << iota, 1<<iota - 1 //bit0 == 1, mask0 == 0

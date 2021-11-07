@@ -1,0 +1,1 @@
+=const     c float64 = iota + 5.1
