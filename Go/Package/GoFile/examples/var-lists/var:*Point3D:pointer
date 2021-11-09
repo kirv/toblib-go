@@ -1,0 +1,1 @@
+=var pointer *Point3D = &Point3D{y: 1000}

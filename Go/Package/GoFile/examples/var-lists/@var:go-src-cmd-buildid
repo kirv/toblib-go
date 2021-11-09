@@ -1,0 +1,3 @@
+// https://github.com/golang/go/blob/master/src/cmd/buildid/buildid.go
+
+var wflag = flag.Bool("w", false, "write build ID")

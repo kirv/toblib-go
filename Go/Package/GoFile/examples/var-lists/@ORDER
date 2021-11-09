@@ -1,0 +1,5 @@
+@var:go-src-cmd-buildid
+@var:golang-org-ref-spec-Composite_literals
+@var:golang-org-ref-spec-Variable_declarations
+@var:golang-org-ref-spec-Variables
+@var:try-duplicate-names

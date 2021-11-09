@@ -1,0 +1,7 @@
+// https://golang.org/ref/spec#Composite_literals
+
+// Taking the address of a composite literal generates a pointer to a unique variable
+// initialized with the literal's value.
+
+var pointer *Point3D = &Point3D{y: 1000}
+
