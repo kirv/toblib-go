@@ -67,8 +67,9 @@ parse_declaration() {
         ## Go will infer the variable type from the value if no type is given.
         parse_values ${#names[@]} "${declaration#*=}"
         [[ ${#values[@]} == ${#names[@]} ]] || {
-            warn "number of values must match number of names"
-            return
+            warn "number of values (${#values[@]}) must match number of names (${#names[@]})" \
+                "    DECLARATION:$declaration" "    FILE:$file"
+            return 1
         }
     }
     [[ $type == '=' ]] && type=
@@ -76,6 +77,7 @@ parse_declaration() {
     ## Now we have names, type, and/or values, so should be all set.
     for ((j=0; j<${#names[@]}; j++)); do 
         name="${names[j]}"
+        [[ $name == '(' ]] && warn "FIX: <$declaration>" "    in $file"
         value="${values[j]}"
         if [[ -n $value ]]; then
             ## We have the name and value, may have the type or not.
@@ -91,89 +93,109 @@ parse_declaration() {
             sv[name]=$key:$type:$name
             sv[value]="$key $name $type"
         fi
+
         ## Replace names[j] entry with associated symvar name for caller's use:
         names[$j]="${sv[name]}"
 
-        ## Now we have the symvar name and value, ready to save.
+        while [[ -h ${sv[name]} ]]; do
+            ## This symvar exists, so check if the value is the same...
+            value=$(readlink "${sv[name]}")
+            [[ =${sv[value]} == $(readlink "${sv[name]}") ]] &&
+                continue 2
+            ## Symvar values differ, so add '-' to the name and try again:
+            sv[name]+='-'
+            names[$j]="${sv[name]}"
+        done
 
-        ## Create symvar if it does not exist, or rewrite value if -f is given:
-        [[ ! -h ${sv[name]} || -n $FORCE ]] &&
-            symvar -f "${sv[name]}" "${sv[value]}" &&
-                continue
-
-        warn "symvar file exists: ${sv[name]} =${sv[value]}"
-
+        ## Now we have a unique symvar name and value, ready to save.
+        symvar "${sv[name]}" "${sv[value]}"
     done
     return
 }
 
 readListFile() {
-    local listfile="$1"
-    local SAVE="$2"
+    local key=$1
+    local listfile="$2"
+    local map="$3"
     local line
-    local BLANK='^ *$'
-    local BLOCKSTART='^\s*$key *\('
-    local BLOCKEND='^\s*\)'
-    local OPENCURLYBRACKET='^ *$key .*{$'
+    local BLANK='^[:blank:]*$'
+    local BLOCKSTART='^[[:blank:]]*(const|var)+[[:blank:]]*\($'
+    local BLOCKEND='^[[:blank:]]*\)'
+    local OPENCURLYBRACKET='^[[:blank:]]*(const|var)[[:blank:]]*{$'
     local inblock=
     local -a names
     local name
 
+    [[ -n $map ]] && mapfiles[$map]=1
     while IFS= read -r line; do 
         ## skip comments, blank lines, start and end of var(...) block:
         [[ $line == //* ]] && continue
         [[ $line =~ $BLANK ]] && continue
-        [[ $line =~ $BLOCKSTART ]] && inblock=1 && continue
-        [[ $line =~ $BLOCKEND ]] && inblock= && continue
+        [[ $line =~ ${BLOCKSTART} ]] && {
+            inblock=1 && continue
+        }
+        [[ $line =~ $BLOCKEND ]] && {
+            inblock= && continue
+        }
         [[ $line =~ $OPENCURLYBRACKET ]] && {
             warn "${0#*lib/} $listfile: unable to handle '$key ... {' declarations"
             return 1
         }
         names=()
         if [[ -n $inblock ]]; then
-            parse_declaration "$key $line"
+            parse_declaration "$key $line" || continue
         else 
-            parse_declaration "$line"
+            parse_declaration "$line" || continue
         fi
 
-        [[ -n $SAVE ]] || continue
+        [[ -n $map ]] || continue
         for name in "${names[@]}"; do
-            printf "%s %s\n" "$name" "$listfile" >> %VARS
+            maps[$map:$name]="$listfile"
         done
     done < "$listfile"
 }
 
 main() {
-    local FORCE
-    [[ $1 == -f ]] && FORCE=1 && shift
     local -a files=("$@")
     local file
+    local -A maps
+    local -A mapfiles
 
     (( $# > 0 )) && {
         ## Process each argument @$key: file.
         ## Don't write to %VARS map.
         for file in "${files[@]}"; do
-            readListFile "$file" ""
+            key="$file"
+            key="${key#@}"
+            key="${key%:*}"
+            readListFile "$key" "$file" ""
         done
         return
     }
 
     ## Called with no arguments, process each @var: or @const: file in @ORDER.
 
-    ## delete map file which contains varnames and associated @file name:
-    [[ -e %VARS ]] && rm %VARS
-
     ## @ORDER list file defines the element files for the target program
     while IFS= read -r file; do
         ## parse list file type from name, e.g., @var:x, @const:y, ...
-        key=${{file#@}%:*}
-        key=${file#@}
-        key=${key%:*}
-        warn "readListFile $key $file" && continue
+        key="$file"
+        key="${key#@}"
+        key="${key%:*}"
         [[ $file == @$key:* ]] || continue
         [[ $key == 'var' || $key == 'const' ]] || continue
-        readListFile "$key" "${file%% *}" "save to map"
+        readListFile "$key" "${file%% *}" "${key^^}S"
     done < @ORDER
+
+    for key in ${!mapfiles[@]}; do
+        [[ -e %$key ]] &&
+            rm %$key
+    done
+    for key in ${!maps[@]}; do
+        mapfile=${key%%:*}
+        key=${key#*:}
+        printf "%s\t%s\n" "$key" "${maps[$key]}" >> %$mapfile
+    done
+
 }
 
 main "$@"

@@ -66,8 +66,11 @@ parse_declaration() {
         ## Go will infer the variable type from the value if no type is given.
         parse_values ${#names[@]} "${declaration#*=}"
         [[ ${#values[@]} == ${#names[@]} ]] || {
-            warn "number of values must match number of names"
-            return
+            warn "number of values (${#values[@]}) must match" \
+                "    number of names (${#names[@]})" \
+                "    file:$file" \
+                "    declaration:$declaration"
+            return 1
         }
     }
     [[ $type == '=' ]] && type=
@@ -79,7 +82,7 @@ parse_declaration() {
         if [[ -n $value ]]; then
             ## We have the name and value, may have the type or not.
             if [[ -n $type ]]; then
-                sv[name]=var:$type:$name
+                sv[name]=var:$name
                 sv[value]="var $name $type =$value"
             else
                 sv[name]=var:$name
@@ -87,7 +90,7 @@ parse_declaration() {
             fi
         else
             ## We have only the name, no value, so must have the type.
-            sv[name]=var:$type:$name
+            sv[name]=var:$name
             sv[value]="var $name $type"
         fi
         ## Replace names[j] entry with associated symvar name for caller's use:
@@ -130,14 +133,14 @@ readVarListFile() {
         }
         names=()
         if [[ -n $inblock ]]; then
-            parse_declaration "var $line"
+            parse_declaration "var $line" || continue
         else 
-            parse_declaration "$line"
+            parse_declaration "$line" || continue
         fi
 
         [[ -n $SAVE ]] || continue
         for name in "${names[@]}"; do
-            printf "%s %s\n" "$name" "$listfile" >> %VARS
+            printf "%-20s\t%s\n" "$name" "$listfile" >> %VARS
         done
     done < "$listfile"
 }
