@@ -1,20 +1,15 @@
 #!/usr/bin/env bash
 
 ## Go/Package/GoFile.list-to-symvars
-## Read @list file(s), create a symvar for each var or const ($key) declaration.
-## Keywords 'var' and 'const' are represented here by variable '$key'.
+## Read @var: or @const: list file(s), create a symvar for each declaration.
 
-## @var: files must contain valid golang global variable declarations
+## @var: or @const: files must contain valid golang global declarations
 ## General syntax:
 ##      var NAME TYPE = VALUE   -- fully declared, with name, type, value
 ##      var NAME = VALUE        -- type is inferred from value
 ##      var NAME TYPE           -- var will be set to the type's 0-value by go
-## NAME can also be a list:
-##      var N1, N2, N3 TYPE = VALUE
-##      var N1, N2, N3 = VALUE
-##      var N1, N2, N3 TYPE
-## Declarations can be also be in a var (...) block, and will be
-## missing the 'var' keyword on each line.
+## where NAME and VALUE can be comma-separated lists.
+## Declarations can be also be in a global var or const (...) block.
 
 parse_values() {
     local -i num=$1
@@ -35,12 +30,7 @@ parse_values() {
 
 parse_declaration() {
     ## Expecting declarations of the form:
-    ##      var name type
-    ##      var name1, name2, name3 type
-    ##      var name type = value
-    ##      var name = value
-    ##      var name1, name2, name3 type = v1, v2, v3
-    ##      var name1, name2, name3 = v1, v2, v3
+    ##      ^(var|const) name[, name2, ...] [type] [= v1[, v2, ...]]
     local declaration="$1" && shift
     local -a dw=( $declaration )
     local -i i j
@@ -77,7 +67,6 @@ parse_declaration() {
     ## Now we have names, type, and/or values, so should be all set.
     for ((j=0; j<${#names[@]}; j++)); do 
         name="${names[j]}"
-        [[ $name == '(' ]] && warn "FIX: <$declaration>" "    in $file"
         value="${values[j]}"
         if [[ -n $value ]]; then
             ## We have the name and value, may have the type or not.
@@ -162,8 +151,8 @@ main() {
     local -A mapfiles
 
     (( $# > 0 )) && {
-        ## Process each argument @$key: file.
-        ## Don't write to %VARS map.
+        ## Process each argument @$key: file (key is var or const).
+        ## Don't write symvar names with filenames to %VARS or %CONSTS map.
         for file in "${files[@]}"; do
             key="$file"
             key="${key#@}"
@@ -178,22 +167,23 @@ main() {
     ## @ORDER list file defines the element files for the target program
     while IFS= read -r file; do
         ## parse list file type from name, e.g., @var:x, @const:y, ...
+        ## Store symvar names with filenames into %VARS or %CONSTS map.
         key="$file"
         key="${key#@}"
-        key="${key%:*}"
+        key="${key%%:*}"
         [[ $file == @$key:* ]] || continue
         [[ $key == 'var' || $key == 'const' ]] || continue
         readListFile "$key" "${file%% *}" "${key^^}S"
     done < @ORDER
 
+    ## Replace map file %VARS or %CONSTS with "$name\t$file" for each symvar. 
     for key in ${!mapfiles[@]}; do
         [[ -e %$key ]] &&
             rm %$key
     done
     for key in ${!maps[@]}; do
-        mapfile=${key%%:*}
-        key=${key#*:}
-        printf "%s\t%s\n" "$key" "${maps[$key]}" >> %$mapfile
+        mapfile=%${key%%:*}
+        printf "%s\t%s\n" "${key#*:}" "${maps[$key]}" >> "$mapfile"
     done
 
 }
