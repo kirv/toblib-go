@@ -1,1 +1,0 @@
-=var wflag = flag.Bool("w", false, "write build ID")
