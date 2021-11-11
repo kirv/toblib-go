@@ -1,0 +1,29 @@
+// This file checks that 
+const xy1 int = 42
+
+// xy2 should NOT get the previous type and value.
+// In fact, xy2 should NOT get a symvar declaration at all.
+const (
+    xy2
+)
+
+// xy3 SHOULD get value 7, but no explicit type.
+const (
+    foo = 7
+    xy3
+)
+
+// xy4 should be skipped, but xy5 and xy6 should get symvars.
+const (
+    xy4
+    xy5 string = "7"
+    xy6
+)
+
+// xy7 and xy8 should be skipped.
+const (
+    xy7
+    xy8
+    xy9 float = -7.0
+    xy10
+)

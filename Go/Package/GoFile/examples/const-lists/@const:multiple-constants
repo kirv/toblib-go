@@ -15,7 +15,7 @@ const (
 
 // Combining above two
 const (
-  f string "circle"
+  f string = "circle"
   g
   h = 1
 )
@@ -24,5 +24,17 @@ const (
 const i, j = 1, 2
 const k, l int = 3, 4
 
+// Adding a test case with multiple names.
+const (
+  m1 float = -1776.1812
+  m2            // with a comment
+  m3, m4, m5
+  // nothing
+  n1 float64
+  n2, n3, n4, n5
+  // once more
+  x1 float64    // comment
+  x2, x3, x4, x5    // no comment
+)
 
 

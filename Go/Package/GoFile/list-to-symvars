@@ -52,18 +52,40 @@ parse_declaration() {
     done
 
     ## Next must be the variable type or '=' and value.
-    type=${dw[i++]}
-    [[ $type == '=' || ${dw[$i]} == '=' ]] && {
-        ## Go will infer the variable type from the value if no type is given.
-        parse_values ${#names[@]} "${declaration#*=}"
-        [[ ${#values[@]} == ${#names[@]} ]] || {
-            warn "number of values (${#values[@]}) must match number of names (${#names[@]})" \
-                "    DECLARATION:$declaration" "    FILE:$file"
+    ## ...
+    ## Except for const (...) declarations, which can be name-only, in
+    ## which case the previous constant's type and value are applied.
+    ## In this case, dw[i] ought to be null, or ${#dw[@]}==$i
+
+    ## Check for name-only entries in const(...) blocks, where type and value
+    ## carry-over from the previous constant declaration.
+    [[ $name == 'foo' ]] && warn "FOO ($inblock) $line"
+    if [[ $key == 'const' ]] && (( inblock>0 )) &&
+        [[ ${#dw[@]} == $i || ${dw[$i]} == '//' ]]; then
+        (( inblock == 1 )) && {
+            warn "Declaration in const(...) has no type or value: <$line>"
             return 1
         }
-    }
-    [[ $type == '=' ]] && type=
-
+        type="${prev[type]}"
+        for ((i=0; i<${#names[@]}; i++)); do
+            values[i]="${prev[value]}"
+        done
+        inblock+=1
+    else
+        type=${dw[i++]}
+        [[ $type == '=' || ${dw[$i]} == '=' ]] && {
+            ## Go will infer the variable type from the value if no type is given.
+            parse_values ${#names[@]} "${declaration#*=}"
+            [[ ${#values[@]} == ${#names[@]} ]] || {
+                warn "number of values (${#values[@]}) must match number of names (${#names[@]})" \
+                    "    DECLARATION:$declaration" "    FILE:$file"
+                return 1
+            }
+        }
+        [[ $type == '=' ]] && type=
+        ## Increment inblock to allow subsequent name-only const(...) entries.
+        inblock+=1
+    fi
     ## Now we have names, type, and/or values, so should be all set.
     for ((j=0; j<${#names[@]}; j++)); do 
         name="${names[j]}"
@@ -86,6 +108,10 @@ parse_declaration() {
         ## Replace names[j] entry with associated symvar name for caller's use:
         names[$j]="${sv[name]}"
 
+        ## Remember type and value in case in a const(...) declaration block.
+        prev[type]=$type
+        prev[value]=$value
+
         while [[ -h ${sv[name]} ]]; do
             ## This symvar exists, so check if the value is the same...
             value=$(readlink "${sv[name]}")
@@ -107,31 +133,29 @@ readListFile() {
     local listfile="$2"
     local map="$3"
     local line
-    local BLANK='^[:blank:]*$'
+    local COMMENTLINE='^[[:blank:]]*//'
+    local BLANK='^[[:blank:]]*$'
     local BLOCKSTART='^[[:blank:]]*(const|var)+[[:blank:]]*\($'
     local BLOCKEND='^[[:blank:]]*\)'
     local OPENCURLYBRACKET='^[[:blank:]]*(const|var)[[:blank:]]*{$'
-    local inblock=
+    local -i inblock=0
     local -a names
     local name
+    local -A prev
 
     [[ -n $map ]] && mapfiles[$map]=1
     while IFS= read -r line; do 
         ## skip comments, blank lines, start and end of var(...) block:
-        [[ $line == //* ]] && continue
+        [[ $line =~ $COMMENTLINE ]] && continue
         [[ $line =~ $BLANK ]] && continue
-        [[ $line =~ ${BLOCKSTART} ]] && {
-            inblock=1 && continue
-        }
-        [[ $line =~ $BLOCKEND ]] && {
-            inblock= && continue
-        }
+        [[ $line =~ ${BLOCKSTART} ]] && inblock=1 && continue
+        [[ $line =~ $BLOCKEND ]] && inblock=0 && continue
         [[ $line =~ $OPENCURLYBRACKET ]] && {
             warn "${0#*lib/} $listfile: unable to handle '$key ... {' declarations"
             return 1
         }
         names=()
-        if [[ -n $inblock ]]; then
+        if (( inblock > 0 )); then
             parse_declaration "$key $line" || continue
         else 
             parse_declaration "$line" || continue
@@ -176,12 +200,13 @@ main() {
         readListFile "$key" "${file%% *}" "${key^^}S"
     done < @ORDER
 
-    ## Replace map file %VARS or %CONSTS with "$name\t$file" for each symvar. 
+    ## Replace %VARS or %CONSTS map file. 
     for key in ${!mapfiles[@]}; do
         [[ -e %$key ]] &&
             rm %$key
     done
     for key in ${!maps[@]}; do
+        ## maps[$map:$name]="$listfile", where $map is VARS or CONSTS
         mapfile=%${key%%:*}
         printf "%s\t%s\n" "${key#*:}" "${maps[$key]}" >> "$mapfile"
     done
