@@ -1,1 +1,0 @@
-=const KB ByteSize = 1 << (10 * iota)

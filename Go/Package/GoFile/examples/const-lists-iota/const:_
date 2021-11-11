@@ -1,1 +1,0 @@
-=const _  = 1 << (iota * 10) // ignore the first value

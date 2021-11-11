@@ -1,1 +1,0 @@
-=const _   int = iota // Skip the first value of 0
