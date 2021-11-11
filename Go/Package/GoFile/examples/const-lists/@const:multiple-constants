@@ -30,11 +30,11 @@ const (
   m2            // with a comment
   m3, m4, m5
   // nothing
-  n1 float64
+  n1 float64 = -17.0
   n2, n3, n4, n5
   // once more
-  x1 float64    // comment
-  x2, x3, x4, x5    // no comment
+  x1 float64 = 117.7 // comment
+  x2, x3, x4, x5     // comment
 )
 
 

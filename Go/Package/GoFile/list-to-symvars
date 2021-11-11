@@ -84,7 +84,7 @@ parse_declaration() {
         }
         [[ $type == '=' ]] && type=
         ## Increment inblock to allow subsequent name-only const(...) entries.
-        inblock+=1
+        (( inblock > 0 )) && inblock+=1
     fi
     ## Now we have names, type, and/or values, so should be all set.
     for ((j=0; j<${#names[@]}; j++)); do 
