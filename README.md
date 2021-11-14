@@ -1,12 +1,28 @@
 # toblib-go
 thinobject library to explore Go packages and files
 
+## What is **thinobject**?
+
+*thinobject* is a set of conventions regarding file and symlink names and an executive function 'tob'
+to run queries of the form: 'object.method' at a bash command line prompt.
+
+*thinobject* uses an executive function, ```tob``` to execute commands at a bash terminal prompt.  The
+commands are passed to ```tob``` by the bash(1) *command_not_found_handle()* function.  Thinobject commands
+are of the form OBJECT.METHOD, where OBJECT is a file or directory visible to the caller, and METHOD is an
+executable script or program resolved by ```tob``` for OBJECT.
+
+Thinobject methods run in the context directory of the object, since ```tob``` changes to the object 
+directory before exec'ing the method.
+
+A *thinobject* object is a directory containing a symlink named ^ (caret) with a non-resolving symlink
+value that is the *type* of the object.
+
+
 ##  Go
 
-Thinobject library Go directory is just a placeholder with no methods (so far).
+Thinobject type *Go* directory is just a placeholder with no methods (so far).
 
 ##  Go/Package/
-        ^ -> Directory
 
 Thinobject library type Go/Package is a Directory object, representing a directory
 containing one or more *.go files under a certain package.
