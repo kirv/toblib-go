@@ -44,7 +44,8 @@ $1 == "//" && name == "" {
     buffer[n++] = $0
     if ( $1 == "package" ) {
         name = "@package"
-        system("symvar -f PACKAGE " $2)
+        
+        system("symvar PACKAGE " $2)
     } else if ( $1 == "import" ) {
         name = "@import"
     } else if ( $1 == "var" ) {
@@ -107,10 +108,13 @@ name == "" {
 function endElement() {
     ## open file 'name', flush buffer into it
   # print "###################### element " e-1, n " lines, {{" name "}}"
-    system("[[ -e " name " ]] && rm " name)
-    for (i=0; i<n; i++) {
-        print buffer[i] >> name
-        delete buffer[i]
+    if ( system("[[ -e " name " ]]" ) == 0 ) {
+        print name, "already exists"
+    } else {
+        for (i=0; i<n; i++) {
+            print buffer[i] >> name
+            delete buffer[i]
+        }
     }
     n = 0
     name = ""
@@ -119,8 +123,11 @@ function endElement() {
 END {
     ## store ordered list of elements in list file @ORDER:
     name = "@ORDER"
-    system("test -e " name " && rm " name)
-    for (i=0; i<e; i++) {
-        print elements[i] >> name
+    if ( system("test -e " name) == 0 ) {
+        print name, "already exists"
+    } else {
+        for (i=0; i<e; i++) {
+            print elements[i] >> name
+        }
     }
 }
